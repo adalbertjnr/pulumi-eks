@@ -8,6 +8,6 @@ func NewExtensions(components types.HelmChartsComponentes) *Extensions {
 	return &Extensions{}
 }
 
-func (e *Extensions) Run() error {
+func (e *Extensions) Run(d *types.InterServicesDependencies) error {
 	return nil
 }

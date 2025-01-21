@@ -11,8 +11,8 @@ const (
 
 const PUBLIC_CIDR = "0.0.0.0/0"
 
-type InterServicesDependsOn struct {
-	RouteTableAssociation *ec2.RouteTableAssociation
+type InterServicesDependencies struct {
+	Subnets []*ec2.Subnet
 }
 
 type Config struct {

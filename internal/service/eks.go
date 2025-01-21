@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"pulumi-eks/internal/types"
-	"pulumi-eks/pkg/awsutils"
+	"pulumi-eks/pkg/generic"
 
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -34,10 +35,10 @@ func NewClusterEKS(ctx *pulumi.Context, networking types.Networking, cluster typ
 	}
 }
 
-func (c *ClusterEKS) Run() error {
+func (c *ClusterEKS) Run(d *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return c.createEKSRole() },
-		func() error { return c.createEKSCluster() },
+		func() error { return c.createEKSCluster(d) },
 	}
 
 	for _, step := range steps {
@@ -49,11 +50,11 @@ func (c *ClusterEKS) Run() error {
 	return nil
 }
 
-func (c *ClusterEKS) createEKSCluster() error {
-
-	subnetList := c.fetchSubnets(
-		c.cluster.Subnets,
-	)
+func (c *ClusterEKS) createEKSCluster(d *types.InterServicesDependencies) error {
+	pulumiIDOutputList := generic.ToStringOutputList(
+		d.Subnets, func(subnet *ec2.Subnet) pulumi.StringOutput {
+			return pulumi.StringOutput(subnet.ID())
+		})
 
 	eksClusterOutput, err := eks.NewCluster(c.ctx, c.cluster.Name, &eks.ClusterArgs{
 		Name:    pulumi.String(c.cluster.Name),
@@ -63,7 +64,7 @@ func (c *ClusterEKS) createEKSCluster() error {
 		},
 		RoleArn: c.dependencies.clusterRole.Arn,
 		VpcConfig: &eks.ClusterVpcConfigArgs{
-			SubnetIds: pulumi.ToStringArray(subnetList),
+			SubnetIds: pulumi.ToStringArrayOutput(pulumiIDOutputList),
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{
 		c.dependencies.clusterRoleAttachment,
@@ -76,10 +77,6 @@ func (c *ClusterEKS) createEKSCluster() error {
 	_ = eksClusterOutput
 
 	return nil
-}
-
-func (c *ClusterEKS) fetchSubnets(subnetNames []string) []string {
-	return awsutils.GetSubnetIDs(c.ctx, subnetNames)
 }
 
 func (c *ClusterEKS) createEKSRole() error {

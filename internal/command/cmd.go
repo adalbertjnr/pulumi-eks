@@ -1,7 +1,9 @@
 package command
 
+import "pulumi-eks/internal/types"
+
 type Command interface {
-	Run() error
+	Run(*types.InterServicesDependencies) error
 }
 
 func New() *CreateCommands {
@@ -16,9 +18,9 @@ func (i *CreateCommands) AddCommand(cmd ...Command) {
 	i.commands = append(i.commands, cmd...)
 }
 
-func (i *CreateCommands) RunCommands() error {
+func (i *CreateCommands) RunCommands(interServicesDependencies *types.InterServicesDependencies) error {
 	for _, cmd := range i.commands {
-		if err := cmd.Run(); err != nil {
+		if err := cmd.Run(interServicesDependencies); err != nil {
 			return err
 		}
 	}

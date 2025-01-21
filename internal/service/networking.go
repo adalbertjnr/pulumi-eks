@@ -25,10 +25,10 @@ func NewNetworking(ctx *pulumi.Context, n types.Networking) *Networking {
 	}
 }
 
-func (v *Networking) Run() error {
+func (v *Networking) Run(interServicesDependencies *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return v.networkingVpc() },
-		func() error { return v.networkingSubnets() },
+		func() error { return v.networkingSubnets(interServicesDependencies) },
 		func() error { return v.networkingInternetGateway() },
 		func() error { return v.networkingEIPs() },
 		func() error { return v.networkingNatGateway() },
@@ -72,11 +72,11 @@ func (v *Networking) networkingVpc() error {
 	return err
 }
 
-func (v *Networking) networkingSubnets() error {
-	var publicSubnet = make([]*ec2.Subnet, 0)
+func (v *Networking) networkingSubnets(d *types.InterServicesDependencies) error {
+	var publicSubnet []*ec2.Subnet
+	var sharedSubnetsBetweenResources []*ec2.Subnet
 
 	for _, subnet := range v.networking.Subnets {
-
 		if !subnet.PublicIpOnLaunch {
 			continue
 		}
@@ -99,6 +99,7 @@ func (v *Networking) networkingSubnets() error {
 			Type:   types.PUBLIC_SUBNET,
 		}
 
+		sharedSubnetsBetweenResources = append(sharedSubnetsBetweenResources, subnetOutput)
 	}
 
 	for i, subnet := range v.networking.Subnets {
@@ -123,7 +124,11 @@ func (v *Networking) networkingSubnets() error {
 			Type:                   types.PRIVATE_SUBNET,
 			NatGatewayPublicSubnet: publicSubnet[i],
 		}
+
+		sharedSubnetsBetweenResources = append(sharedSubnetsBetweenResources, subnetOutput)
 	}
+
+	d.Subnets = sharedSubnetsBetweenResources
 
 	return nil
 }

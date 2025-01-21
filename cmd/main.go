@@ -43,6 +43,10 @@ func main() {
 			extensionsService,
 		)
 
-		return resourceController.RunCommands()
+		interServicesDependsOn := &types.InterServicesDependencies{}
+
+		return resourceController.RunCommands(
+			interServicesDependsOn,
+		)
 	})
 }
