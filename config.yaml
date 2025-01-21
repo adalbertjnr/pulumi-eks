@@ -1,0 +1,65 @@
+spec:
+  networking:
+    name: apps-vpc
+    cidrBlock: "10.0.0.0/16"
+    subnets:
+    - name: apps-subnet-1a-priv
+      cidrBlock: "10.0.0.0/24"
+      publicIpOnLaunch: false
+      availabilityZone: "us-east-1a"
+    - name: apps-subnet-1b-priv
+      cidrBlock: "10.0.1.0/24"
+      publicIpOnLaunch: false
+      availabilityZone: "us-east-1b"
+    - name: apps-subnet-1a-pub
+      cidrBlock: "10.0.2.0/24"
+      publicIpOnLaunch: true
+      availabilityZone: "us-east-1a"
+    - name: apps-subnet-1b-pub
+      cidrBlock: "10.0.3.0/24"
+      publicIpOnLaunch: true
+      availabilityZone: "us-east-1b"
+
+  cluster:
+    name: cluster-test
+    environment: dev
+    region: us-east-1
+    kubernetesVersion: "1.31"
+    vpcId: apps-vpc
+    subnets: ["apps-subnet-1a-pub", "apps-subnet-1b-pub"]
+    securityGroups: ["sg-102930sdccc", "sg-102390c0s"]
+
+  nodeGroups:
+  - name: ng-dev-test1
+    scalingConfig:
+      minSize: 1
+      desiredSize: 2
+      maxSize: 2
+    instanceType: t3.medium
+    nodeLabels:
+      role: app
+
+  helmChartsComponentes:
+    components:
+    - name: alb-controller
+      version: "15.4.0"
+      repository: "https://alb-address/helm-charts"
+      namespace: "kube-system"
+      setValues:
+        foo: bar
+
+    - name: ebs-csi
+      version: "15.4.0"
+      repository: "https://ebs-csi/helm-charts"
+      namespace: "kube-system"
+      setValues:
+        foo: bar
+
+    - name: argocd1
+      version: "15.4.0"
+      repository: "https://ebs-csi/helm-charts"
+      namespace: "argocd"
+      createNamespace: true
+      setValues:
+        foo: bar
+      
