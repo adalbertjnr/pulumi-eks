@@ -1,6 +1,9 @@
 package types
 
-import "github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
+import (
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/autoscaling"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
+)
 
 type SubnetType int
 
@@ -13,6 +16,8 @@ const PUBLIC_CIDR = "0.0.0.0/0"
 
 type InterServicesDependencies struct {
 	Subnets []*ec2.Subnet
+
+	AutoscalingGroup *autoscaling.Group
 }
 
 type Config struct {
