@@ -1,4 +1,4 @@
-package service
+package eks
 
 import (
 	"encoding/json"
@@ -35,10 +35,10 @@ func NewClusterEKS(ctx *pulumi.Context, networking types.Networking, cluster typ
 	}
 }
 
-func (c *ClusterEKS) Run(d *types.InterServicesDependencies) error {
+func (c *ClusterEKS) Run(networkingDependency *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return c.createEKSRole() },
-		func() error { return c.createEKSCluster(d) },
+		func() error { return c.createEKSCluster(networkingDependency) },
 	}
 
 	for _, step := range steps {
@@ -50,9 +50,9 @@ func (c *ClusterEKS) Run(d *types.InterServicesDependencies) error {
 	return nil
 }
 
-func (c *ClusterEKS) createEKSCluster(d *types.InterServicesDependencies) error {
+func (c *ClusterEKS) createEKSCluster(networkingDependency *types.InterServicesDependencies) error {
 	pulumiIDOutputList := generic.ToStringOutputList(
-		d.Subnets, func(subnet *ec2.Subnet) pulumi.StringOutput {
+		networkingDependency.Subnets, func(subnet *ec2.Subnet) pulumi.StringOutput {
 			return pulumi.StringOutput(subnet.ID())
 		})
 
