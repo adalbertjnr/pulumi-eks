@@ -1,4 +1,4 @@
-package eks
+package service
 
 import (
 	"encoding/json"
@@ -51,8 +51,13 @@ func (c *ClusterEKS) Run(networkingDependency *types.InterServicesDependencies) 
 }
 
 func (c *ClusterEKS) createEKSCluster(networkingDependency *types.InterServicesDependencies) error {
+	publicSubnetList, found := networkingDependency.Subnets[types.PUBLIC_SUBNET]
+	if !found {
+		return fmt.Errorf("public subnets were not found in the subnets map")
+	}
+
 	pulumiIDOutputList := generic.ToStringOutputList(
-		networkingDependency.Subnets, func(subnet *ec2.Subnet) pulumi.StringOutput {
+		publicSubnetList, func(subnet *ec2.Subnet) pulumi.StringOutput {
 			return pulumi.StringOutput(subnet.ID())
 		})
 

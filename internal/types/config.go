@@ -15,9 +15,15 @@ const (
 const PUBLIC_CIDR = "0.0.0.0/0"
 
 type InterServicesDependencies struct {
-	Subnets []*ec2.Subnet
+	Subnets map[SubnetType][]*ec2.Subnet
 
-	AutoscalingGroup *autoscaling.Group
+	AutoscalingGroup         *autoscaling.Group
+	LaunchTemplateOutputList map[string]NodeGroupMetadata
+}
+
+type NodeGroupMetadata struct {
+	Node NodeGroups
+	Lt   *ec2.LaunchTemplate
 }
 
 type Config struct {
@@ -57,6 +63,7 @@ type NodeGroups struct {
 	ScalingConfig ScalingConfig `yaml:"scalingConfig"`
 	InstanceType  string        `yaml:"instanceType"`
 	NodeLabels    NodeLabels    `yaml:"nodeLabels"`
+	ImageId       string        `yaml:"imageId"`
 }
 type SetValues struct {
 	Foo string `yaml:"foo"`

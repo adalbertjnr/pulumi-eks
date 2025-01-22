@@ -1,4 +1,4 @@
-package components
+package service
 
 import "pulumi-eks/internal/types"
 

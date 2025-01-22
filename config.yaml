@@ -36,8 +36,9 @@ spec:
       desiredSize: 2
       maxSize: 2
     instanceType: t3.medium
+    imageId: "ami-03413b57906e5c8b2"
     nodeLabels:
-      role: app
+      apps: pulumi
 
   helmChartsComponentes:
     components:
