@@ -2,7 +2,10 @@ package main
 
 import (
 	"pulumi-eks/internal/command"
-	"pulumi-eks/internal/service"
+	asg "pulumi-eks/internal/service/autoscaling"
+	"pulumi-eks/internal/service/components"
+	"pulumi-eks/internal/service/eks"
+	"pulumi-eks/internal/service/networking"
 	"pulumi-eks/internal/types"
 	cfgreader "pulumi-eks/pkg/read"
 
@@ -21,24 +24,31 @@ func main() {
 
 		resourceController := command.New()
 
-		networkingService := service.NewNetworking(
+		networkingService := networking.NewNetworking(
 			ctx,
 			c.Spec.Networking,
 		)
 
-		clusterService := service.NewClusterEKS(
+		autoscalingService := asg.NewAutoscalingGroup(
+			ctx,
+			c.Spec.Cluster,
+			c.Spec.NodeGroups,
+		)
+
+		clusterService := eks.NewClusterEKS(
 			ctx,
 			c.Spec.Networking,
 			c.Spec.Cluster,
 			c.Spec.NodeGroups,
 		)
 
-		extensionsService := service.NewExtensions(
+		extensionsService := components.NewExtensions(
 			c.Spec.HelmChartsComponentes,
 		)
 
 		resourceController.AddCommand(
 			networkingService,
+			autoscalingService,
 			clusterService,
 			extensionsService,
 		)
