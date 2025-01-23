@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"pulumi-eks/internal/types"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
@@ -25,8 +27,8 @@ func NewAutoscalingGroup(ctx *pulumi.Context, c types.Cluster, n []types.NodeGro
 	}
 }
 
-func (ag *AutoscalingGroup) Run(interServicesDependencies *types.InterServicesDependencies) error {
-	return ag.launchTemplate(interServicesDependencies)
+func (ag *AutoscalingGroup) Run(dependency *types.InterServicesDependencies) error {
+	return ag.launchTemplate(dependency)
 }
 
 // func (ag *AutoscalingGroup) createAutoscalingGroup(interServicesDependencies *types.InterServicesDependencies) error {
@@ -45,12 +47,29 @@ func (ag *AutoscalingGroup) Run(interServicesDependencies *types.InterServicesDe
 // 	return err
 // }
 
-func (ag *AutoscalingGroup) launchTemplate(interServicesDependencies *types.InterServicesDependencies) error {
+func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDependencies) error {
 
 	const INSTANCE = "instance"
 	const VOLUME = "volume"
 
 	var launchTemplateOutputMap = make(map[string]types.NodeGroupMetadata, len(ag.nodes))
+
+	clusterOutput := dependency.ClusterOutput
+
+	clusterUserData := pulumi.All(
+		clusterOutput.EKSCluster.Name,
+		clusterOutput.EKSCluster.CertificateAuthority.Data(),
+		clusterOutput.EKSCluster.Endpoint,
+	).
+		ApplyT(func(args []interface{}) (string, error) {
+			clusterName := args[0].(string)
+			ca := args[1].(*string)
+			endpoint := args[2].(string)
+
+			return buildLauncTemplateUserData(clusterName, *ca, endpoint)
+		}).(pulumi.StringOutput)
+
+	ag.ctx.Export("test", clusterUserData)
 
 	for n, node := range ag.nodes {
 		launchTemplateUniqueName := fmt.Sprintf("%s-lt-%d", node.Name, n)
@@ -60,7 +79,7 @@ func (ag *AutoscalingGroup) launchTemplate(interServicesDependencies *types.Inte
 			UpdateDefaultVersion: pulumi.Bool(true),
 			ImageId:              pulumi.String(node.ImageId),
 			InstanceType:         pulumi.String(node.InstanceType),
-			UserData:             pulumi.String(LAUNCH_TEMPLATE_USERDATA),
+			UserData:             clusterUserData.ToStringPtrOutput(),
 
 			BlockDeviceMappings: ec2.LaunchTemplateBlockDeviceMappingArray{
 				ec2.LaunchTemplateBlockDeviceMappingArgs{
@@ -95,7 +114,7 @@ func (ag *AutoscalingGroup) launchTemplate(interServicesDependencies *types.Inte
 					),
 				},
 			},
-		})
+		}, pulumi.DependsOn([]pulumi.Resource{dependency.ClusterOutput.EKSCluster}))
 
 		if err != nil {
 			return err
@@ -108,13 +127,14 @@ func (ag *AutoscalingGroup) launchTemplate(interServicesDependencies *types.Inte
 			}
 		}
 	}
-	interServicesDependencies.LaunchTemplateOutputList = launchTemplateOutputMap
+	dependency.LaunchTemplateOutputList = launchTemplateOutputMap
 	// ag.lt = launchTemplateOutput
 
 	return nil
 }
 
-const LAUNCH_TEMPLATE_USERDATA = `
+func buildLauncTemplateUserData(clusterName, clusterCA, clusterAPIServerURL string) (string, error) {
+	const LAUNCH_TEMPLATE_USERDATA = `
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
 
@@ -126,7 +146,6 @@ set -ex
 
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
-# Install Docker
 amazon-linux-extras install docker
 systemctl enable docker
 systemctl start docker
@@ -134,7 +153,30 @@ systemctl start docker
 yum install -y amazon-ssm-agent htop
 systemctl enable amazon-ssm-agent && systemctl start amazon-ssm-agent
 
-/etc/eks/bootstrap.sh ${CLUSTER_NAME} --b64-cluster-ca ${B64_CLUSTER_CA} --apiserver-endpoint ${API_SERVER_URL}
+/etc/eks/bootstrap.sh {{ .ClusterName }} --b64-cluster-ca {{ .ClusterCA }} --apiserver-endpoint {{ .ApiServerUrl }}
 
 --==MYBOUNDARY==--\
 `
+
+	ltData := struct {
+		ClusterName  string
+		ClusterCA    string
+		ApiServerUrl string
+	}{
+		ClusterName:  clusterName,
+		ClusterCA:    clusterCA,
+		ApiServerUrl: clusterAPIServerURL,
+	}
+
+	tmpl, err := template.New("userData").Parse(LAUNCH_TEMPLATE_USERDATA)
+	if err != nil {
+		return "", err
+	}
+
+	var r bytes.Buffer
+	if err := tmpl.Execute(&r, ltData); err != nil {
+		return "", err
+	}
+
+	return r.String(), nil
+}

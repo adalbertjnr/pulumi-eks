@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/autoscaling"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 )
 
 type SubnetType int
@@ -19,11 +20,17 @@ type InterServicesDependencies struct {
 
 	AutoscalingGroup         *autoscaling.Group
 	LaunchTemplateOutputList map[string]NodeGroupMetadata
+
+	ClusterOutput ClusterOutput
 }
 
 type NodeGroupMetadata struct {
 	Node NodeGroups
 	Lt   *ec2.LaunchTemplate
+}
+
+type ClusterOutput struct {
+	EKSCluster *eks.Cluster
 }
 
 type Config struct {
@@ -55,15 +62,12 @@ type ScalingConfig struct {
 	DesiredSize int `yaml:"desiredSize"`
 	MaxSize     int `yaml:"maxSize"`
 }
-type NodeLabels struct {
-	Role string `yaml:"role"`
-}
 type NodeGroups struct {
-	Name          string        `yaml:"name"`
-	ScalingConfig ScalingConfig `yaml:"scalingConfig"`
-	InstanceType  string        `yaml:"instanceType"`
-	NodeLabels    NodeLabels    `yaml:"nodeLabels"`
-	ImageId       string        `yaml:"imageId"`
+	Name          string            `yaml:"name"`
+	ScalingConfig ScalingConfig     `yaml:"scalingConfig"`
+	InstanceType  string            `yaml:"instanceType"`
+	NodeLabels    map[string]string `yaml:"nodeLabels"`
+	ImageId       string            `yaml:"imageId"`
 }
 type SetValues struct {
 	Foo string `yaml:"foo"`

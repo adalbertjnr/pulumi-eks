@@ -25,10 +25,10 @@ func NewNetworking(ctx *pulumi.Context, n types.Networking) *Networking {
 	}
 }
 
-func (v *Networking) Run(interServicesDependencies *types.InterServicesDependencies) error {
+func (v *Networking) Run(dependency *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return v.networkingVpc() },
-		func() error { return v.networkingSubnets(interServicesDependencies) },
+		func() error { return v.networkingSubnets(dependency) },
 		func() error { return v.networkingInternetGateway() },
 		func() error { return v.networkingEIPs() },
 		func() error { return v.networkingNatGateway() },
