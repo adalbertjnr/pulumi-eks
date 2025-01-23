@@ -52,8 +52,8 @@ func main() {
 
 		resourceController.AddCommand(
 			networkingService,
-			autoscalingService,
 			clusterService,
+			autoscalingService,
 			nodeGroupService,
 			extensionsService,
 		)
