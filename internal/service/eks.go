@@ -35,10 +35,10 @@ func NewClusterEKS(ctx *pulumi.Context, networking types.Networking, cluster typ
 	}
 }
 
-func (c *ClusterEKS) Run(networkingDependency *types.InterServicesDependencies) error {
+func (c *ClusterEKS) Run(dependency *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return c.createEKSRole() },
-		func() error { return c.createEKSCluster(networkingDependency) },
+		func() error { return c.createEKSCluster(dependency) },
 	}
 
 	for _, step := range steps {
@@ -50,18 +50,18 @@ func (c *ClusterEKS) Run(networkingDependency *types.InterServicesDependencies) 
 	return nil
 }
 
-func (c *ClusterEKS) createEKSCluster(networkingDependency *types.InterServicesDependencies) error {
-	publicSubnetList, found := networkingDependency.Subnets[types.PUBLIC_SUBNET]
+func (c *ClusterEKS) createEKSCluster(dependency *types.InterServicesDependencies) error {
+	publicSubnetList, found := dependency.Subnets[types.PUBLIC_SUBNET]
 	if !found {
 		return fmt.Errorf("public subnets were not found in the subnets map")
 	}
 
 	pulumiIDOutputList := generic.ToStringOutputList(
 		publicSubnetList, func(subnet *ec2.Subnet) pulumi.StringOutput {
-			return pulumi.StringOutput(subnet.ID())
+			return subnet.ID().ToStringOutput()
 		})
 
-	eksClusterOutput, err := eks.NewCluster(c.ctx, c.cluster.Name, &eks.ClusterArgs{
+	clusterOutput, err := eks.NewCluster(c.ctx, c.cluster.Name, &eks.ClusterArgs{
 		Name:    pulumi.String(c.cluster.Name),
 		Version: pulumi.String(c.cluster.KubernetesVersion),
 		AccessConfig: &eks.ClusterAccessConfigArgs{
@@ -79,7 +79,11 @@ func (c *ClusterEKS) createEKSCluster(networkingDependency *types.InterServicesD
 		return err
 	}
 
-	_ = eksClusterOutput
+	clusterOutputDTO := types.ClusterOutput{
+		EKSCluster: clusterOutput,
+	}
+
+	dependency.ClusterOutput = clusterOutputDTO
 
 	return nil
 }
