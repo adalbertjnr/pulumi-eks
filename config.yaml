@@ -36,7 +36,7 @@ spec:
       desiredSize: 2
       maxSize: 2
     instanceType: t3.medium
-    imageId: "ami-03413b57906e5c8b2"
+    imageId: "ami-0181ca43ef1eba8ed"
     nodeLabels:
       apps: pulumi
 
@@ -46,6 +46,7 @@ spec:
       version: "15.4.0"
       repository: "https://alb-address/helm-charts"
       namespace: "kube-system"
+      skipCirds: false
       setValues:
         foo: bar
 
@@ -53,6 +54,7 @@ spec:
       version: "15.4.0"
       repository: "https://ebs-csi/helm-charts"
       namespace: "kube-system"
+      skipCirds: false
       setValues:
         foo: bar
 
@@ -60,7 +62,7 @@ spec:
       version: "15.4.0"
       repository: "https://ebs-csi/helm-charts"
       namespace: "argocd"
+      skipCirds: false
       createNamespace: true
       setValues:
         foo: bar
-      

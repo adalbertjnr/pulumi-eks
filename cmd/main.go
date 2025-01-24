@@ -47,6 +47,7 @@ func main() {
 		)
 
 		extensionsService := service.NewExtensions(
+			ctx,
 			c.Spec.HelmChartsComponentes,
 		)
 
