@@ -22,11 +22,17 @@ type InterServicesDependencies struct {
 	LaunchTemplateOutputList map[string]NodeGroupMetadata
 
 	ClusterOutput ClusterOutput
+
+	NodeGroupsOutput NodeGroupsOutput
 }
 
 type NodeGroupMetadata struct {
 	Node NodeGroups
 	Lt   *ec2.LaunchTemplate
+}
+
+type NodeGroupsOutput struct {
+	NodeGroups []*eks.NodeGroup
 }
 
 type ClusterOutput struct {
@@ -69,16 +75,15 @@ type NodeGroups struct {
 	NodeLabels    map[string]string `yaml:"nodeLabels"`
 	ImageId       string            `yaml:"imageId"`
 }
-type SetValues struct {
-	Foo string `yaml:"foo"`
-}
+
 type Components struct {
-	Name            string    `yaml:"name"`
-	Version         string    `yaml:"version"`
-	Repository      string    `yaml:"repository"`
-	Namespace       string    `yaml:"namespace"`
-	SetValues       SetValues `yaml:"setValues"`
-	CreateNamespace bool      `yaml:"createNamespace,omitempty"`
+	Name            string                 `yaml:"name"`
+	Version         *string                `yaml:"version"`
+	Repository      string                 `yaml:"repository"`
+	Namespace       string                 `yaml:"namespace"`
+	SetValues       map[string]interface{} `yaml:"setValues"`
+	CreateNamespace bool                   `yaml:"createNamespace,omitempty"`
+	SkipCirds       bool                   `yaml:"skipCirds"`
 }
 type HelmChartsComponentes struct {
 	Components []Components `yaml:"components"`

@@ -66,8 +66,10 @@ func (c *NodeGroup) createNodeGroup(dependency *types.InterServicesDependencies)
 		policyAttachmentDependsOn[i] = c.att[i]
 	}
 
+	var nodeGroupOutputList types.NodeGroupsOutput
+
 	for nodeName, nodeGroupConfig := range dependency.LaunchTemplateOutputList {
-		_, err := eks.NewNodeGroup(c.ctx, nodeName, &eks.NodeGroupArgs{
+		nodeGroupOutput, err := eks.NewNodeGroup(c.ctx, nodeName, &eks.NodeGroupArgs{
 			ClusterName:   dependency.ClusterOutput.EKSCluster.Name,
 			NodeRoleArn:   c.dependencies.nodeRole.Arn,
 			SubnetIds:     pulumi.ToStringArrayOutput(pulumiIDOutputList),
@@ -87,7 +89,11 @@ func (c *NodeGroup) createNodeGroup(dependency *types.InterServicesDependencies)
 		if err != nil {
 			return err
 		}
+
+		nodeGroupOutputList.NodeGroups = append(nodeGroupOutputList.NodeGroups, nodeGroupOutput)
 	}
+
+	dependency.NodeGroupsOutput = nodeGroupOutputList
 
 	return nil
 }

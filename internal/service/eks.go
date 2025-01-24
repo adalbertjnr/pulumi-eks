@@ -9,6 +9,7 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
+	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/vpc"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -17,6 +18,8 @@ type ClusterEKS struct {
 	networking types.Networking
 	cluster    types.Cluster
 	nodes      []types.NodeGroups
+
+	clusterOutput *eks.Cluster
 
 	dependencies clusterDependsOn
 }
@@ -39,6 +42,7 @@ func (c *ClusterEKS) Run(dependency *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return c.createEKSRole() },
 		func() error { return c.createEKSCluster(dependency) },
+		func() error { return c.modifyEKSSecurityGroup() },
 	}
 
 	for _, step := range steps {
@@ -64,9 +68,6 @@ func (c *ClusterEKS) createEKSCluster(dependency *types.InterServicesDependencie
 	clusterOutput, err := eks.NewCluster(c.ctx, c.cluster.Name, &eks.ClusterArgs{
 		Name:    pulumi.String(c.cluster.Name),
 		Version: pulumi.String(c.cluster.KubernetesVersion),
-		AccessConfig: &eks.ClusterAccessConfigArgs{
-			AuthenticationMode: pulumi.String("API"),
-		},
 		RoleArn: c.dependencies.clusterRole.Arn,
 		VpcConfig: &eks.ClusterVpcConfigArgs{
 			SubnetIds: pulumi.ToStringArrayOutput(pulumiIDOutputList),
@@ -83,9 +84,24 @@ func (c *ClusterEKS) createEKSCluster(dependency *types.InterServicesDependencie
 		EKSCluster: clusterOutput,
 	}
 
+	c.clusterOutput = clusterOutput
+
 	dependency.ClusterOutput = clusterOutputDTO
 
 	return nil
+}
+
+func (c *ClusterEKS) modifyEKSSecurityGroup() error {
+	modifyUniqueName := fmt.Sprintf("%s-modifySG", c.cluster.Name)
+	_, err := vpc.NewSecurityGroupIngressRule(c.ctx, modifyUniqueName, &vpc.SecurityGroupIngressRuleArgs{
+		CidrIpv4:        pulumi.String(types.PUBLIC_CIDR),
+		FromPort:        pulumi.Int(443),
+		ToPort:          pulumi.Int(443),
+		IpProtocol:      pulumi.String("tcp"),
+		SecurityGroupId: c.clusterOutput.VpcConfig.ClusterSecurityGroupId().Elem(),
+	})
+
+	return err
 }
 
 func (c *ClusterEKS) createEKSRole() error {
