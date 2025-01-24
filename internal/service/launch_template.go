@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"pulumi-eks/internal/types"
@@ -56,20 +57,22 @@ func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDepend
 
 	clusterOutput := dependency.ClusterOutput
 
+	clusterOutput.EKSCluster.KubernetesNetworkConfig.ServiceIpv4Cidr()
+
 	clusterUserData := pulumi.All(
 		clusterOutput.EKSCluster.Name,
 		clusterOutput.EKSCluster.CertificateAuthority.Data(),
 		clusterOutput.EKSCluster.Endpoint,
+		clusterOutput.EKSCluster.KubernetesNetworkConfig.ServiceIpv4Cidr(),
 	).
 		ApplyT(func(args []interface{}) (string, error) {
 			clusterName := args[0].(string)
 			ca := args[1].(*string)
 			endpoint := args[2].(string)
+			clusterCidr := args[3].(*string)
 
-			return buildLauncTemplateUserData(clusterName, *ca, endpoint)
+			return buildLauncTemplateUserData(clusterName, *ca, endpoint, *clusterCidr)
 		}).(pulumi.StringOutput)
-
-	ag.ctx.Export("test", clusterUserData)
 
 	for n, node := range ag.nodes {
 		launchTemplateUniqueName := fmt.Sprintf("%s-lt-%d", node.Name, n)
@@ -133,39 +136,37 @@ func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDepend
 	return nil
 }
 
-func buildLauncTemplateUserData(clusterName, clusterCA, clusterAPIServerURL string) (string, error) {
+func buildLauncTemplateUserData(clusterName, clusterCA, clusterAPIServerURL, clusterCIDR string) (string, error) {
 	const LAUNCH_TEMPLATE_USERDATA = `
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+Content-Type: multipart/mixed; boundary="BOUNDARY"
 
---==MYBOUNDARY==
-Content-Type: text/x-shellscript; charset="us-ascii"
+--BOUNDARY
+Content-Type: application/node.eks.aws
 
-#!/bin/bash
-set -ex
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: {{ .ClusterName }}
+    apiServerEndpoint: {{ .ApiServerUrl }}
+    certificateAuthority: {{ .ClusterCA }}
+    cidr: {{ .ClusterCIDR }}
 
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-
-amazon-linux-extras install docker
-systemctl enable docker
-systemctl start docker
-
-yum install -y amazon-ssm-agent htop
-systemctl enable amazon-ssm-agent && systemctl start amazon-ssm-agent
-
-/etc/eks/bootstrap.sh {{ .ClusterName }} --b64-cluster-ca {{ .ClusterCA }} --apiserver-endpoint {{ .ApiServerUrl }}
-
---==MYBOUNDARY==--\
-`
+--BOUNDARY--
+	`
 
 	ltData := struct {
 		ClusterName  string
 		ClusterCA    string
 		ApiServerUrl string
+		ClusterCIDR  string
 	}{
 		ClusterName:  clusterName,
 		ClusterCA:    clusterCA,
 		ApiServerUrl: clusterAPIServerURL,
+		ClusterCIDR:  clusterCIDR,
 	}
 
 	tmpl, err := template.New("userData").Parse(LAUNCH_TEMPLATE_USERDATA)
@@ -178,5 +179,7 @@ systemctl enable amazon-ssm-agent && systemctl start amazon-ssm-agent
 		return "", err
 	}
 
-	return r.String(), nil
+	userDataBase64 := base64.StdEncoding.EncodeToString(r.Bytes())
+
+	return userDataBase64, nil
 }
