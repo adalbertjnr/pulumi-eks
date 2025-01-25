@@ -51,12 +51,14 @@ func main() {
 			c.Spec.HelmChartsComponentes,
 		)
 
+		_ = extensionsService
+
 		resourceController.AddCommand(
 			networkingService,
 			clusterService,
 			autoscalingService,
 			nodeGroupService,
-			extensionsService,
+			// extensionsService,
 		)
 
 		interServicesDependsOn := &types.InterServicesDependencies{}

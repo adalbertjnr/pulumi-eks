@@ -70,7 +70,9 @@ func (c *ClusterEKS) createEKSCluster(dependency *types.InterServicesDependencie
 		Version: pulumi.String(c.cluster.KubernetesVersion),
 		RoleArn: c.dependencies.clusterRole.Arn,
 		VpcConfig: &eks.ClusterVpcConfigArgs{
-			SubnetIds: pulumi.ToStringArrayOutput(pulumiIDOutputList),
+			SubnetIds:             pulumi.ToStringArrayOutput(pulumiIDOutputList),
+			EndpointPrivateAccess: pulumi.BoolPtr(true),
+			EndpointPublicAccess:  pulumi.BoolPtr(true),
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{
 		c.dependencies.clusterRoleAttachment,

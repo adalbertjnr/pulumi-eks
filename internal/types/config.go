@@ -25,7 +25,6 @@ type InterServicesDependencies struct {
 
 	NodeGroupsOutput NodeGroupsOutput
 }
-
 type NodeGroupMetadata struct {
 	Node NodeGroups
 	Lt   *ec2.LaunchTemplate
@@ -48,12 +47,12 @@ type Networking struct {
 	Subnets   []Subnets
 }
 type Subnets struct {
-	Name             string `yaml:"name"`
-	CidrBlock        string `yaml:"cidrBlock"`
-	PublicIpOnLaunch bool   `yaml:"publicIpOnLaunch"`
-	AvailabilityZone string `yaml:"availabilityZone"`
+	Name             string                 `yaml:"name"`
+	CidrBlock        string                 `yaml:"cidrBlock"`
+	PublicIpOnLaunch bool                   `yaml:"publicIpOnLaunch"`
+	AvailabilityZone string                 `yaml:"availabilityZone"`
+	Tags             map[string]interface{} `yaml:"tags"`
 }
-
 type Cluster struct {
 	Name              string   `yaml:"name"`
 	Environment       string   `yaml:"environment"`
@@ -75,7 +74,6 @@ type NodeGroups struct {
 	NodeLabels    map[string]string `yaml:"nodeLabels"`
 	ImageId       string            `yaml:"imageId"`
 }
-
 type Components struct {
 	Name            string                 `yaml:"name"`
 	Version         *string                `yaml:"version"`

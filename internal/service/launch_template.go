@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"pulumi-eks/internal/types"
+	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -32,50 +33,17 @@ func (ag *AutoscalingGroup) Run(dependency *types.InterServicesDependencies) err
 	return ag.launchTemplate(dependency)
 }
 
-// func (ag *AutoscalingGroup) createAutoscalingGroup(interServicesDependencies *types.InterServicesDependencies) error {
-// 	asgUniqueName := fmt.Sprintf("%s-asg", "foo")
-// 	autoScalingGroupOutput, err := autoscaling.NewGroup(ag.ctx, asgUniqueName, &autoscaling.GroupArgs{
-// 		MaxSize:         pulumi.Int(3),
-// 		MinSize:         pulumi.Int(1),
-// 		DesiredCapacity: pulumi.Int(2),
-// 		LaunchTemplate: autoscaling.GroupLaunchTemplateArgs{
-// 			Id: ag.lt.ID(),
-// 		},
-// 	}, pulumi.DependsOn([]pulumi.Resource{ag.lt}))
-
-// 	interServicesDependencies.AutoscalingGroup = autoScalingGroupOutput
-
-// 	return err
-// }
-
 func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDependencies) error {
-
-	const INSTANCE = "instance"
-	const VOLUME = "volume"
 
 	var launchTemplateOutputMap = make(map[string]types.NodeGroupMetadata, len(ag.nodes))
 
-	clusterOutput := dependency.ClusterOutput
-
-	clusterOutput.EKSCluster.KubernetesNetworkConfig.ServiceIpv4Cidr()
-
-	clusterUserData := pulumi.All(
-		clusterOutput.EKSCluster.Name,
-		clusterOutput.EKSCluster.CertificateAuthority.Data(),
-		clusterOutput.EKSCluster.Endpoint,
-		clusterOutput.EKSCluster.KubernetesNetworkConfig.ServiceIpv4Cidr(),
-	).
-		ApplyT(func(args []interface{}) (string, error) {
-			clusterName := args[0].(string)
-			ca := args[1].(*string)
-			endpoint := args[2].(string)
-			clusterCidr := args[3].(*string)
-
-			return buildLauncTemplateUserData(clusterName, *ca, endpoint, *clusterCidr)
-		}).(pulumi.StringOutput)
-
 	for n, node := range ag.nodes {
 		launchTemplateUniqueName := fmt.Sprintf("%s-lt-%d", node.Name, n)
+
+		clusterUserData := createLtUserData(
+			dependency.ClusterOutput,
+			node.Name,
+		)
 
 		launchTemplateOutput, err := ec2.NewLaunchTemplate(ag.ctx, launchTemplateUniqueName, &ec2.LaunchTemplateArgs{
 			Name:                 pulumi.String(launchTemplateUniqueName),
@@ -104,16 +72,16 @@ func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDepend
 
 			TagSpecifications: ec2.LaunchTemplateTagSpecificationArray{
 				ec2.LaunchTemplateTagSpecificationArgs{
-					ResourceType: pulumi.String(INSTANCE),
+					ResourceType: pulumi.String("instance"),
 					Tags: pulumi.ToStringMap(map[string]string{
-						"Name": fmt.Sprintf("%s-%s-%s", ag.cluster.Name, node.Name, INSTANCE),
+						"Name": fmt.Sprintf("%s-%s-%s", ag.cluster.Name, node.Name, "instance"),
 					}),
 				},
 
 				ec2.LaunchTemplateTagSpecificationArgs{
-					ResourceType: pulumi.String(VOLUME),
+					ResourceType: pulumi.String("volume"),
 					Tags: pulumi.ToStringMap(map[string]string{
-						"Name": fmt.Sprintf("%s-%s-%s", ag.cluster.Name, node.Name, VOLUME)},
+						"Name": fmt.Sprintf("%s-%s-%s", ag.cluster.Name, node.Name, "volume")},
 					),
 				},
 			},
@@ -131,17 +99,32 @@ func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDepend
 		}
 	}
 	dependency.LaunchTemplateOutputList = launchTemplateOutputMap
-	// ag.lt = launchTemplateOutput
 
 	return nil
 }
 
-func buildLauncTemplateUserData(clusterName, clusterCA, clusterAPIServerURL, clusterCIDR string) (string, error) {
-	const LAUNCH_TEMPLATE_USERDATA = `
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOUNDARY"
+func createLtUserData(clusterOutput types.ClusterOutput, nodeGroupName string) pulumi.StringOutput {
+	return pulumi.All(
+		clusterOutput.EKSCluster.Name,
+		clusterOutput.EKSCluster.CertificateAuthority.Data(),
+		clusterOutput.EKSCluster.Endpoint,
+		clusterOutput.EKSCluster.KubernetesNetworkConfig.ServiceIpv4Cidr(),
+	).
+		ApplyT(func(args []interface{}) (string, error) {
+			clusterName := args[0].(string)
+			ca := args[1].(*string)
+			endpoint := args[2].(string)
+			clusterCidr := args[3].(*string)
 
---BOUNDARY
+			return buildLauncTemplateUserData(clusterName, *ca, endpoint, *clusterCidr, strings.ToUpper(nodeGroupName))
+		}).(pulumi.StringOutput)
+}
+
+func buildLauncTemplateUserData(clusterName, clusterCA, clusterAPIServerURL, clusterCIDR string, nodeGroupName string) (string, error) {
+	const LAUNCH_TEMPLATE_USERDATA = `MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
 Content-Type: application/node.eks.aws
 
 ---
@@ -149,24 +132,37 @@ apiVersion: node.eks.aws/v1alpha1
 kind: NodeConfig
 spec:
   cluster:
-    name: {{ .ClusterName }}
     apiServerEndpoint: {{ .ApiServerUrl }}
     certificateAuthority: {{ .ClusterCA }}
     cidr: {{ .ClusterCIDR }}
+    name: {{ .ClusterName }}
+  kubelet:
+    flags:
+    - "--node-labels=eks.amazonaws.com/nodegroup={{ .NodeGroupName }}"
 
---BOUNDARY--
-	`
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+set -o xtrace
+
+yum install amazon-ssm-agent -y
+systemctl enable amazon-ssm-agent && systemctl start amazon-ssm-agent
+  
+--//--`
 
 	ltData := struct {
-		ClusterName  string
-		ClusterCA    string
-		ApiServerUrl string
-		ClusterCIDR  string
+		ClusterName   string
+		ClusterCA     string
+		ApiServerUrl  string
+		ClusterCIDR   string
+		NodeGroupName string
 	}{
-		ClusterName:  clusterName,
-		ClusterCA:    clusterCA,
-		ApiServerUrl: clusterAPIServerURL,
-		ClusterCIDR:  clusterCIDR,
+		ClusterName:   clusterName,
+		ClusterCA:     clusterCA,
+		ApiServerUrl:  clusterAPIServerURL,
+		ClusterCIDR:   clusterCIDR,
+		NodeGroupName: nodeGroupName,
 	}
 
 	tmpl, err := template.New("userData").Parse(LAUNCH_TEMPLATE_USERDATA)
@@ -179,7 +175,5 @@ spec:
 		return "", err
 	}
 
-	userDataBase64 := base64.StdEncoding.EncodeToString(r.Bytes())
-
-	return userDataBase64, nil
+	return base64.StdEncoding.EncodeToString(r.Bytes()), nil
 }

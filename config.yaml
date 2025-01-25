@@ -45,15 +45,15 @@ spec:
     securityGroups: ["sg-102930sdccc", "sg-102390c0s"]
 
   nodeGroups:
-  - name: ng-dev-test2
+  - name: ng-dev-test
     scalingConfig:
       minSize: 1
-      desiredSize: 2
-      maxSize: 2
+      desiredSize: 1
+      maxSize: 1
     instanceType: t3.medium
     imageId: "ami-0181ca43ef1eba8ed"
     nodeLabels:
-      apps: pulumi
+      apps: pulumi-app
 
   helmChartsComponentes:
     components:

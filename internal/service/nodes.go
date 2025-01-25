@@ -75,6 +75,7 @@ func (c *NodeGroup) createNodeGroup(dependency *types.InterServicesDependencies)
 			SubnetIds:     pulumi.ToStringArrayOutput(pulumiIDOutputList),
 			NodeGroupName: pulumi.String(strings.ToUpper(nodeName)),
 			Tags:          pulumi.ToStringMap(nodeGroupConfig.Node.NodeLabels),
+			Labels:        pulumi.ToStringMap(nodeGroupConfig.Node.NodeLabels),
 			LaunchTemplate: eks.NodeGroupLaunchTemplateArgs{
 				Id:      nodeGroupConfig.Lt.ID(),
 				Version: pulumi.String("$Latest"),
