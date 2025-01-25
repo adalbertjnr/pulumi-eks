@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"pulumi-eks/internal/types"
+	"strconv"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -72,6 +73,25 @@ func (v *Networking) networkingVpc() error {
 	return err
 }
 
+func pulumiStringMapSubnetTag(name string, subnetInputTags map[string]interface{}) pulumi.StringMap {
+	result := make(pulumi.StringMap)
+
+	for key, value := range subnetInputTags {
+		switch v := value.(type) {
+		case string:
+			result[key] = pulumi.String(v)
+		case int:
+			result[key] = pulumi.String(strconv.Itoa(v))
+		}
+	}
+
+	if _, found := result["Name"]; !found {
+		result["Name"] = pulumi.String(name)
+	}
+
+	return result
+}
+
 func (v *Networking) networkingSubnets(d *types.InterServicesDependencies) error {
 	var publicSubnet []*ec2.Subnet
 	var privateSubnet []*ec2.Subnet
@@ -82,10 +102,12 @@ func (v *Networking) networkingSubnets(d *types.InterServicesDependencies) error
 			continue
 		}
 
+		subnetTags := pulumiStringMapSubnetTag(subnet.Name, subnet.Tags)
+
 		subnetOutput, err := ec2.NewSubnet(v.ctx, subnet.Name, &ec2.SubnetArgs{
 			VpcId:               v.vpc.ID(),
 			CidrBlock:           pulumi.String(subnet.CidrBlock),
-			Tags:                pulumi.StringMap{"Name": pulumi.String(subnet.Name)},
+			Tags:                subnetTags,
 			MapPublicIpOnLaunch: pulumi.Bool(subnet.PublicIpOnLaunch),
 			AvailabilityZone:    pulumi.String(subnet.AvailabilityZone),
 		})
@@ -168,7 +190,8 @@ func (v *Networking) networkingEIPs() error {
 		if config, exists := v.networkingConfigMap[subnetConfig.Name]; exists && config.Type == types.PRIVATE_SUBNET {
 
 			natGatewayEIP, err := ec2.NewEip(v.ctx, eniUniqueName, &ec2.EipArgs{
-				Tags: pulumi.StringMap{"Name": pulumi.String(eniUniqueName)},
+				Domain: pulumi.StringPtr("vpc"),
+				Tags:   pulumi.StringMap{"Name": pulumi.String(eniUniqueName)},
 			})
 
 			if err != nil {

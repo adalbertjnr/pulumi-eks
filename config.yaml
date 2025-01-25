@@ -7,18 +7,33 @@ spec:
       cidrBlock: "10.0.0.0/24"
       publicIpOnLaunch: false
       availabilityZone: "us-east-1a"
+      tags:
+        "kubernetes.io/role/internal-elb": 1
+        "kubernetes.io/cluster/cluster-test": owned
+
     - name: apps-subnet-1b-priv
       cidrBlock: "10.0.1.0/24"
       publicIpOnLaunch: false
       availabilityZone: "us-east-1b"
+      tags:
+        "kubernetes.io/role/internal-elb": 1
+        "kubernetes.io/cluster/cluster-test": owned
+
     - name: apps-subnet-1a-pub
       cidrBlock: "10.0.2.0/24"
       publicIpOnLaunch: true
       availabilityZone: "us-east-1a"
+      tags:
+        "kubernetes.io/role/elb": 1
+        "kubernetes.io/cluster/cluster-test": owned
+
     - name: apps-subnet-1b-pub
       cidrBlock: "10.0.3.0/24"
       publicIpOnLaunch: true
       availabilityZone: "us-east-1b"
+      tags:
+        "kubernetes.io/role/elb": 1
+        "kubernetes.io/cluster/cluster-test": owned
 
   cluster:
     name: cluster-test
@@ -30,7 +45,7 @@ spec:
     securityGroups: ["sg-102930sdccc", "sg-102390c0s"]
 
   nodeGroups:
-  - name: ng-dev-test1
+  - name: ng-dev-test2
     scalingConfig:
       minSize: 1
       desiredSize: 2
@@ -46,7 +61,7 @@ spec:
       version: "15.4.0"
       repository: "https://alb-address/helm-charts"
       namespace: "kube-system"
-      skipCirds: false
+      skipCidrs: false
       setValues:
         foo: bar
 
@@ -54,7 +69,7 @@ spec:
       version: "15.4.0"
       repository: "https://ebs-csi/helm-charts"
       namespace: "kube-system"
-      skipCirds: false
+      skipCidrs: false
       setValues:
         foo: bar
 
@@ -62,7 +77,7 @@ spec:
       version: "15.4.0"
       repository: "https://ebs-csi/helm-charts"
       namespace: "argocd"
-      skipCirds: false
+      skipCidrs: false
       createNamespace: true
       setValues:
         foo: bar
