@@ -235,8 +235,7 @@ func (v *Networking) networkingRouteTable() error {
 		if config, exists := v.networkingConfigMap[subnetConfig.Name]; exists {
 
 			routeTableOutput, err := ec2.NewRouteTable(v.ctx, rtUniqueName, &ec2.RouteTableArgs{
-				VpcId:  v.vpc.ID(),
-				Routes: ec2.RouteTableRouteArray{},
+				VpcId: v.vpc.ID(),
 			})
 
 			if err != nil {
