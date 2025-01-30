@@ -36,7 +36,7 @@ spec:
         "kubernetes.io/cluster/cluster-test": owned
 
   cluster:
-    name: cluster-test
+    name: cluster-test-new
     environment: dev
     region: us-east-1
     kubernetesVersion: "1.31"
@@ -58,26 +58,9 @@ spec:
   helmChartsComponentes:
     components:
     - name: alb-controller
-      version: "15.4.0"
-      repository: "https://alb-address/helm-charts"
+      version: "1.11.0"
+      repository: "https://aws.github.io/eks-charts"
       namespace: "kube-system"
       skipCidrs: false
-      setValues:
-        foo: bar
-
-    - name: ebs-csi
-      version: "15.4.0"
-      repository: "https://ebs-csi/helm-charts"
-      namespace: "kube-system"
-      skipCidrs: false
-      setValues:
-        foo: bar
-
-    - name: argocd1
-      version: "15.4.0"
-      repository: "https://ebs-csi/helm-charts"
-      namespace: "argocd"
-      skipCidrs: false
-      createNamespace: true
       setValues:
         foo: bar

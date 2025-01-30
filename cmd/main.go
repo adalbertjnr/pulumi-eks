@@ -26,7 +26,7 @@ func main() {
 			c.Spec.Networking,
 		)
 
-		autoscalingService := service.NewAutoscalingGroup(
+		autoscalingService := service.NewLaunchTemplate(
 			ctx,
 			c.Spec.Cluster,
 			c.Spec.NodeGroups,
@@ -51,14 +51,12 @@ func main() {
 			c.Spec.HelmChartsComponentes,
 		)
 
-		_ = extensionsService
-
 		resourceController.AddCommand(
 			networkingService,
 			clusterService,
 			autoscalingService,
 			nodeGroupService,
-			// extensionsService,
+			extensionsService,
 		)
 
 		interServicesDependsOn := &types.InterServicesDependencies{}

@@ -18,9 +18,11 @@ func (i *CreateCommands) AddCommand(cmd ...Command) {
 	i.commands = append(i.commands, cmd...)
 }
 
-func (i *CreateCommands) RunCommands(interServicesDependencies *types.InterServicesDependencies) error {
+func (i *CreateCommands) RunCommands(
+	dependency *types.InterServicesDependencies,
+) error {
 	for _, cmd := range i.commands {
-		if err := cmd.Run(interServicesDependencies); err != nil {
+		if err := cmd.Run(dependency); err != nil {
 			return err
 		}
 	}

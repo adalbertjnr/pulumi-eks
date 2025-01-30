@@ -4,6 +4,7 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/autoscaling"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 type SubnetType int
@@ -36,6 +37,7 @@ type NodeGroupsOutput struct {
 
 type ClusterOutput struct {
 	EKSCluster *eks.Cluster
+	KubeConfig pulumi.StringOutput
 }
 
 type Config struct {

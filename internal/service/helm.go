@@ -3,6 +3,7 @@ package service
 import (
 	"pulumi-eks/internal/types"
 
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	helmv4 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v4"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -35,6 +36,14 @@ func (e *Extensions) applyHelmCharts(dependency *types.InterServicesDependencies
 		nodeGroupResourceList...,
 	)
 
+	provider, err := kubernetes.NewProvider(e.ctx, "kubernetes-provider", &kubernetes.ProviderArgs{
+		Kubeconfig: dependency.ClusterOutput.KubeConfig,
+	}, pulumi.DependsOn(dependsOnResources))
+
+	if err != nil {
+		return err
+	}
+
 	for _, component := range e.helmComponents.Components {
 		_, err := helmv4.NewChart(e.ctx, component.Name, &helmv4.ChartArgs{
 			Name:      pulumi.String(component.Name),
@@ -46,7 +55,7 @@ func (e *Extensions) applyHelmCharts(dependency *types.InterServicesDependencies
 				Repo: pulumi.String(component.Repository),
 			},
 			Values: pulumi.ToMap(component.SetValues),
-		}, pulumi.DependsOn(dependsOnResources))
+		}, pulumi.Provider(provider))
 
 		if err != nil {
 			return err

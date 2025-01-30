@@ -12,7 +12,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-type AutoscalingGroup struct {
+type LaunchTemplate struct {
 	ctx *pulumi.Context
 
 	cluster types.Cluster
@@ -21,19 +21,19 @@ type AutoscalingGroup struct {
 	lt *ec2.LaunchTemplate
 }
 
-func NewAutoscalingGroup(ctx *pulumi.Context, c types.Cluster, n []types.NodeGroups) *AutoscalingGroup {
-	return &AutoscalingGroup{
+func NewLaunchTemplate(ctx *pulumi.Context, c types.Cluster, n []types.NodeGroups) *LaunchTemplate {
+	return &LaunchTemplate{
 		ctx:     ctx,
 		cluster: c,
 		nodes:   n,
 	}
 }
 
-func (ag *AutoscalingGroup) Run(dependency *types.InterServicesDependencies) error {
+func (ag *LaunchTemplate) Run(dependency *types.InterServicesDependencies) error {
 	return ag.launchTemplate(dependency)
 }
 
-func (ag *AutoscalingGroup) launchTemplate(dependency *types.InterServicesDependencies) error {
+func (ag *LaunchTemplate) launchTemplate(dependency *types.InterServicesDependencies) error {
 
 	var launchTemplateOutputMap = make(map[string]types.NodeGroupMetadata, len(ag.nodes))
 
