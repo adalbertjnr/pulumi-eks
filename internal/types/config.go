@@ -93,15 +93,24 @@ type HelmChartsComponentes struct {
 }
 
 type IdentityPodAgent struct {
-	Deploy     bool `yaml:"deploy"`
-	Identities []Identity
+	Deploy     bool       `yaml:"deploy"`
+	Identities Identities `yaml:"identities"`
 }
 
-type Identity struct {
+type Identities struct {
+	Roles         []Role         `yaml:"roles"`
+	Relationships []Relationship `yaml:"relationships"`
+}
+
+type Role struct {
 	RoleName                string   `yaml:"roleName"`
-	Namespace               string   `yaml:"namespace"`
 	AwsPolicies             []string `yaml:"awsPolicies"`
 	SelfManagedPoliciesPath []string `yaml:"selfManagedPoliciesPath"`
+}
+
+type Relationship struct {
+	RoleName  string `yaml:"roleName"`
+	Namespace string `yaml:"namespace"`
 }
 
 type Spec struct {
