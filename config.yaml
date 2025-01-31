@@ -55,12 +55,22 @@ spec:
     nodeLabels:
       apps: pulumi-app
 
+  identityPodAgent:
+   deploy: false
+   identities:
+   - roleName: eks-pod-example
+     namespace: example
+     awsPolicies: [""]
+     selfManagedPoliciesPath: [""]
+
   helmChartsComponentes:
     components:
-    - name: alb-controller
+    - name: aws-load-balancer-controller
       version: "1.11.0"
       repository: "https://aws.github.io/eks-charts"
       namespace: "kube-system"
       skipCidrs: false
       setValues:
-        foo: bar
+        clusterName: cluster-test-new
+        serviceAccount:
+          create: true

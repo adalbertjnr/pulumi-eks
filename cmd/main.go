@@ -46,6 +46,12 @@ func main() {
 			c.Spec.NodeGroups,
 		)
 
+		podIdentityService := service.NewPodIdentity(
+			ctx,
+			c.Spec.Cluster,
+			c.Spec.IdentityPodAgent,
+		)
+
 		extensionsService := service.NewExtensions(
 			ctx,
 			c.Spec.HelmChartsComponentes,
@@ -56,13 +62,14 @@ func main() {
 			clusterService,
 			autoscalingService,
 			nodeGroupService,
+			podIdentityService,
 			extensionsService,
 		)
 
-		interServicesDependsOn := &types.InterServicesDependencies{}
+		servicesDependsOn := &types.InterServicesDependencies{}
 
 		return resourceController.RunCommands(
-			interServicesDependsOn,
+			servicesDependsOn,
 		)
 	})
 }
