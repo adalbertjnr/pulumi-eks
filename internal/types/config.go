@@ -4,6 +4,7 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/autoscaling"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
+	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -25,6 +26,8 @@ type InterServicesDependencies struct {
 	ClusterOutput ClusterOutput
 
 	NodeGroupsOutput NodeGroupsOutput
+
+	PodIdentityAgent *yamlv2.ConfigGroup
 }
 type NodeGroupMetadata struct {
 	Node NodeGroups
@@ -88,9 +91,23 @@ type Components struct {
 type HelmChartsComponentes struct {
 	Components []Components `yaml:"components"`
 }
+
+type IdentityPodAgent struct {
+	Deploy     bool `yaml:"deploy"`
+	Identities []Identity
+}
+
+type Identity struct {
+	RoleName                string   `yaml:"roleName"`
+	Namespace               string   `yaml:"namespace"`
+	AwsPolicies             []string `yaml:"awsPolicies"`
+	SelfManagedPoliciesPath []string `yaml:"selfManagedPoliciesPath"`
+}
+
 type Spec struct {
 	Networking            Networking            `yaml:"networking"`
 	Cluster               Cluster               `yaml:"cluster"`
 	NodeGroups            []NodeGroups          `yaml:"nodeGroups"`
 	HelmChartsComponentes HelmChartsComponentes `yaml:"helmChartsComponentes"`
+	IdentityPodAgent      IdentityPodAgent      `yaml:"identityPodAgent"`
 }

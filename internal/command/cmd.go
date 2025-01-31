@@ -1,6 +1,9 @@
 package command
 
-import "pulumi-eks/internal/types"
+import (
+	"errors"
+	"pulumi-eks/internal/types"
+)
 
 type Command interface {
 	Run(*types.InterServicesDependencies) error
@@ -23,6 +26,9 @@ func (i *CreateCommands) RunCommands(
 ) error {
 	for _, cmd := range i.commands {
 		if err := cmd.Run(dependency); err != nil {
+			if errors.Is(err, types.ErrNotErrorServiceSkipped) {
+				continue
+			}
 			return err
 		}
 	}

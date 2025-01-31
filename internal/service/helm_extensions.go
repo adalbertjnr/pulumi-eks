@@ -1,9 +1,10 @@
 package service
 
 import (
+	"pulumi-eks/internal/service/shared"
 	"pulumi-eks/internal/types"
 
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v3/go/kubernetes"
 	helmv4 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v4"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -25,20 +26,11 @@ func (e *Extensions) Run(dependency *types.InterServicesDependencies) error {
 }
 
 func (e *Extensions) applyHelmCharts(dependency *types.InterServicesDependencies) error {
-	var nodeGroupResourceList = make([]pulumi.Resource, len(dependency.NodeGroupsOutput.NodeGroups))
+	dependsOn := shared.RetrieveDependsOnList(dependency)
 
-	for n, nodeGroupOutput := range dependency.NodeGroupsOutput.NodeGroups {
-		nodeGroupResourceList[n] = nodeGroupOutput
-	}
-
-	dependsOnResources := append(
-		[]pulumi.Resource{dependency.ClusterOutput.EKSCluster},
-		nodeGroupResourceList...,
-	)
-
-	provider, err := kubernetes.NewProvider(e.ctx, "kubernetes-provider", &kubernetes.ProviderArgs{
+	provider, err := kubernetes.NewProvider(e.ctx, "kubernetes-provider-helm", &kubernetes.ProviderArgs{
 		Kubeconfig: dependency.ClusterOutput.KubeConfig,
-	}, pulumi.DependsOn(dependsOnResources))
+	})
 
 	if err != nil {
 		return err
@@ -50,12 +42,12 @@ func (e *Extensions) applyHelmCharts(dependency *types.InterServicesDependencies
 			Chart:     pulumi.String(component.Name),
 			Namespace: pulumi.String(component.Namespace),
 			SkipCrds:  pulumi.BoolPtr(component.SkipCirds),
-			Version:   pulumi.StringPtr(*component.Version),
+			Version:   pulumi.String(*component.Version),
 			RepositoryOpts: helmv4.RepositoryOptsArgs{
 				Repo: pulumi.String(component.Repository),
 			},
 			Values: pulumi.ToMap(component.SetValues),
-		}, pulumi.Provider(provider))
+		}, pulumi.DependsOn(dependsOn), pulumi.Provider(provider))
 
 		if err != nil {
 			return err
