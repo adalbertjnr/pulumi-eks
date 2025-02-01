@@ -21,11 +21,11 @@ type LaunchTemplate struct {
 	lt *ec2.LaunchTemplate
 }
 
-func NewLaunchTemplate(ctx *pulumi.Context, c types.Cluster, n []types.NodeGroups) *LaunchTemplate {
+func NewLaunchTemplate(ctx *pulumi.Context, cluster types.Cluster, nodes []types.NodeGroups) *LaunchTemplate {
 	return &LaunchTemplate{
 		ctx:     ctx,
-		cluster: c,
-		nodes:   n,
+		cluster: cluster,
+		nodes:   nodes,
 	}
 }
 
