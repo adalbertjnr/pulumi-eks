@@ -128,10 +128,12 @@ func (v *Networking) networkingSubnets(d *types.InterServicesDependencies) error
 			continue
 		}
 
+		subnetTags := pulumiStringMapSubnetTag(subnet.Name, subnet.Tags)
+
 		subnetOutput, err := ec2.NewSubnet(v.ctx, subnet.Name, &ec2.SubnetArgs{
 			VpcId:               v.vpc.ID(),
 			CidrBlock:           pulumi.String(subnet.CidrBlock),
-			Tags:                pulumi.StringMap{"Name": pulumi.String(subnet.Name)},
+			Tags:                subnetTags,
 			MapPublicIpOnLaunch: pulumi.Bool(subnet.PublicIpOnLaunch),
 			AvailabilityZone:    pulumi.String(subnet.AvailabilityZone),
 		})
