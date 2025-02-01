@@ -57,8 +57,6 @@ func main() {
 			c.Spec.Cluster,
 		)
 
-		_ = oidcService
-
 		extensionsService := service.NewExtensions(
 			ctx,
 			c.Spec.HelmChartsComponentes,
@@ -70,6 +68,7 @@ func main() {
 			autoscalingService,
 			nodeGroupService,
 			podIdentityService,
+			oidcService,
 			extensionsService,
 		)
 

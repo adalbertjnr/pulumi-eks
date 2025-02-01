@@ -1,6 +1,7 @@
 package service
 
 import (
+	"pulumi-eks/internal/service/shared"
 	"pulumi-eks/internal/types"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
@@ -24,14 +25,16 @@ func (o *OIDC) Run(dependency *types.InterServicesDependencies) error {
 }
 
 func (o *OIDC) deployOIDCProvider(dependency *types.InterServicesDependencies) error {
-	oidc := dependency.ClusterOutput.EKSCluster.Identities.Index(pulumi.Int(0)).Oidcs().Index(pulumi.Int(0)).Issuer()
-	// sha1 := dependency.ClusterOutput.EKSCluster.Identities.Index(pulumi.Int(0)).Oidcs().Index(pulumi.Int(0)).Issuer()
+	clusterNodesDependsOn := shared.RetrieveDependsOnList(dependency)
+
+	oidc := dependency.ClusterOutput.EKSCluster.Identities.
+		Index(pulumi.Int(0)).Oidcs().
+		Index(pulumi.Int(0)).Issuer()
 
 	_, err := iam.NewOpenIdConnectProvider(o.ctx, "openid-connect-provider-eks", &iam.OpenIdConnectProviderArgs{
-		Url:             oidc.Elem().ToStringOutput(),
-		ClientIdLists:   pulumi.ToStringArray([]string{"sts.amazonaws.com"}),
-		ThumbprintLists: nil,
-	})
+		Url:           oidc.Elem().ToStringOutput(),
+		ClientIdLists: pulumi.ToStringArray([]string{"sts.amazonaws.com"}),
+	}, pulumi.DependsOn(clusterNodesDependsOn))
 
 	return err
 }
