@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"pulumi-eks/internal/service/shared"
 	"pulumi-eks/internal/types"
+	"pulumi-eks/pkg/generic"
 	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/eks"
@@ -44,7 +45,7 @@ func (p *PODIdentity) Run(dependency *types.InterServicesDependencies) error {
 	steps := []func() error{
 		func() error { return p.validate() },
 		func() error { return p.deployIdentityPodAgent(dependency) },
-		func() error { return p.createIdentityRoles() },
+		func() error { return p.createIdentityRoles(dependency) },
 		func() error { return p.createAWSRolePolicyAttachment() },
 		func() error { return p.createSelfManagedPolicies() },
 		func() error { return p.createSelfManagedRolePolicyAttachment() },
@@ -125,6 +126,12 @@ func (p *PODIdentity) createSelfManagedPolicies() error {
 	policyMap := make(map[string][]*iam.Policy)
 	selfManagedPoliciesList := make([]*iam.Policy, 0)
 
+	iamRoleList := generic.FromMapValueToList(p.roleMap)
+
+	iamRoleListDependsOn := generic.ToPulumiResourceList(iamRoleList, func(r *iam.Role) pulumi.Resource {
+		return r
+	})
+
 	for ri, attach := range p.identity.Identities.Roles {
 		if attach.SelfManagedPoliciesPath == nil {
 			continue
@@ -144,7 +151,7 @@ func (p *PODIdentity) createSelfManagedPolicies() error {
 			policy, err := iam.NewPolicy(p.ctx, policyUniqueName, &iam.PolicyArgs{
 				Name:   pulumi.StringPtr(policyName),
 				Policy: pulumi.String(string(file)),
-			})
+			}, pulumi.DependsOn(iamRoleListDependsOn))
 
 			if err != nil {
 				return err
@@ -165,6 +172,12 @@ func (p *PODIdentity) createSelfManagedPolicies() error {
 func (p *PODIdentity) createSelfManagedRolePolicyAttachment() error {
 	var attachOutputList []*iam.RolePolicyAttachment
 
+	iamRoleList := generic.FromMapValueToList(p.roleMap)
+
+	iamRoleListDependsOn := generic.ToPulumiResourceList(iamRoleList, func(r *iam.Role) pulumi.Resource {
+		return r
+	})
+
 	for roleName, attach := range p.policyMap {
 		for i, policy := range attach {
 
@@ -172,7 +185,7 @@ func (p *PODIdentity) createSelfManagedRolePolicyAttachment() error {
 			attachOutput, err := iam.NewRolePolicyAttachment(p.ctx, attachUniqueName, &iam.RolePolicyAttachmentArgs{
 				Role:      pulumi.StringPtr(roleName),
 				PolicyArn: policy.Arn,
-			})
+			}, pulumi.DependsOn(iamRoleListDependsOn))
 
 			if err != nil {
 				return err
@@ -190,6 +203,12 @@ func (p *PODIdentity) createSelfManagedRolePolicyAttachment() error {
 func (p *PODIdentity) createAWSRolePolicyAttachment() error {
 	var attachOutputList []*iam.RolePolicyAttachment
 
+	iamRoleList := generic.FromMapValueToList(p.roleMap)
+
+	iamRoleListDependsOn := generic.ToPulumiResourceList(iamRoleList, func(r *iam.Role) pulumi.Resource {
+		return r
+	})
+
 	for ri, attach := range p.identity.Identities.Roles {
 		for pi, policy := range attach.AwsPolicies {
 
@@ -199,7 +218,7 @@ func (p *PODIdentity) createAWSRolePolicyAttachment() error {
 			attachOutput, err := iam.NewRolePolicyAttachment(p.ctx, attachUniqueName, &iam.RolePolicyAttachmentArgs{
 				PolicyArn: pulumi.String(policy),
 				Role:      role,
-			})
+			}, pulumi.DependsOn(iamRoleListDependsOn))
 
 			if err != nil {
 				return err
@@ -231,7 +250,9 @@ func (p *PODIdentity) deployIdentityPodAgent(dependency *types.InterServicesDepe
 	return nil
 }
 
-func (p *PODIdentity) createIdentityRoles() error {
+func (p *PODIdentity) createIdentityRoles(dependency *types.InterServicesDependencies) error {
+	dependsOn := shared.RetrieveDependsOnList(dependency)
+
 	assumeRoleIdentityPolicy, err := json.Marshal(map[string]interface{}{
 		"Version": "2012-10-17",
 		"Statement": []map[string]interface{}{
@@ -251,13 +272,15 @@ func (p *PODIdentity) createIdentityRoles() error {
 		return err
 	}
 
+	policyJSON := string(assumeRoleIdentityPolicy)
+
 	roleMap := make(map[string]*iam.Role, len(p.identity.Identities.Roles))
 
 	for _, data := range p.identity.Identities.Roles {
 		role, err := iam.NewRole(p.ctx, data.RoleName, &iam.RoleArgs{
-			AssumeRolePolicy: pulumi.StringPtr(string(assumeRoleIdentityPolicy)),
+			AssumeRolePolicy: pulumi.String(policyJSON),
 			Name:             pulumi.String(data.RoleName),
-		})
+		}, pulumi.DependsOn(dependsOn))
 
 		if err != nil {
 			return err

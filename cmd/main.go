@@ -52,6 +52,13 @@ func main() {
 			c.Spec.IdentityPodAgent,
 		)
 
+		oidcService := service.NewOIDCProvider(
+			ctx,
+			c.Spec.Cluster,
+		)
+
+		_ = oidcService
+
 		extensionsService := service.NewExtensions(
 			ctx,
 			c.Spec.HelmChartsComponentes,
