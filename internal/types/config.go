@@ -80,14 +80,32 @@ type NodeGroups struct {
 	ImageId       string            `yaml:"imageId"`
 }
 type Components struct {
-	Name            string                 `yaml:"name"`
-	Version         *string                `yaml:"version"`
-	Repository      string                 `yaml:"repository"`
-	Namespace       string                 `yaml:"namespace"`
-	SetValues       map[string]interface{} `yaml:"setValues"`
-	CreateNamespace bool                   `yaml:"createNamespace,omitempty"`
-	SkipCirds       bool                   `yaml:"skipCirds"`
+	Name             string                 `yaml:"name"`
+	Version          *string                `yaml:"version"`
+	Repository       string                 `yaml:"repository"`
+	Namespace        string                 `yaml:"namespace"`
+	SetValues        map[string]interface{} `yaml:"setValues"`
+	CreateNamespace  bool                   `yaml:"createNamespace,omitempty"`
+	SkipCirds        bool                   `yaml:"skipCirds"`
+	WithOIDCProvider *WithOIDCProvider      `yaml:"withOidcProvider"`
 }
+
+type WithOIDCProvider struct {
+	Create         bool           `yaml:"create"`
+	ServiceAccount ServiceAccount `yaml:"serviceAccount"`
+	OidcIAMRole    OidcIAMRole    `yaml:"role"`
+}
+
+type OidcIAMRole struct {
+	Name                    string   `yaml:"name"`
+	AwsPolicies             []string `yaml:"awsPolicies"`
+	SelfManagedPoliciesPath []string `yaml:"selfManagedPoliciesPath"`
+}
+
+type ServiceAccount struct {
+	Name string `yaml:"name"`
+}
+
 type HelmChartsComponentes struct {
 	Components []Components `yaml:"components"`
 }

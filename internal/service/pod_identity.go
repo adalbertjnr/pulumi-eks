@@ -19,6 +19,8 @@ import (
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type PODIdentity struct {
@@ -147,9 +149,11 @@ func (p *PODIdentity) createSelfManagedPolicies() error {
 			policyNameBasePath := filepath.Base(policyPath)
 			policyName, _, _ := strings.Cut(policyNameBasePath, ".")
 
+			policyNameTitle := cases.Title(language.English).String(policyName)
+
 			policyUniqueName := fmt.Sprintf("%d-%s-%d-policy-sm", ri, attach.RoleName, pi)
 			policy, err := iam.NewPolicy(p.ctx, policyUniqueName, &iam.PolicyArgs{
-				Name:   pulumi.StringPtr(policyName),
+				Name:   pulumi.StringPtr(policyNameTitle),
 				Policy: pulumi.String(string(file)),
 			}, pulumi.DependsOn(iamRoleListDependsOn))
 
@@ -263,7 +267,7 @@ func (p *PODIdentity) createIdentityRoles(dependency *types.InterServicesDepende
 				},
 				"Effect": "Allow",
 				"Principal": map[string]interface{}{
-					"Service": "eks.amazonaws.com",
+					"Service": "pods.eks.amazonaws.com",
 				},
 			},
 		},

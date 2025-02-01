@@ -61,7 +61,7 @@ spec:
     roles:
     - roleName: eks-pod-example
       awsPolicies: ["arn:aws:iam::aws:policy/AmazonS3FullAccess"]
-      selfManagedPoliciesPath: ["../policies/example-policy.json"]
+      selfManagedPoliciesPath: ["../policies/identity_pod_policies/example-policy.json"]
     relationships:
     - roleName: eks-pod-example
       namespace: example
@@ -71,11 +71,19 @@ spec:
   helmChartsComponentes:
     components:
     - name: aws-load-balancer-controller
+      skipCidrs: false
       version: "1.11.0"
       repository: "https://aws.github.io/eks-charts"
       namespace: "kube-system"
-      skipCidrs: false
+      withOidcProvider:
+        create: true
+        role:
+          name: AWSLoadBalancerControllerRole
+          awsPolicies: []
+          selfManagedPoliciesPath: ["../policies/alb_policy/alb-policy.json"]
+        serviceAccount:
+          name: aws-load-balancer-controller
       setValues:
         clusterName: cluster-test-new
         serviceAccount:
-          create: true
+          name: aws-load-balancer-controller
