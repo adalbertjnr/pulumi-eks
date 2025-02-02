@@ -1,10 +1,8 @@
 package service
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"os"
 	"path/filepath"
 	"pulumi-eks/internal/service/shared"
@@ -17,7 +15,6 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v3/go/kubernetes"
 	v1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
-	yamlv2 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml/v2"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -247,11 +244,13 @@ func (p *PODIdentity) deployIdentityPodAgent(dependency *types.InterServicesDepe
 		return err
 	}
 
-	dependency.ClusterOutput.EKSCluster.Name.ApplyT(func(clusterName string) error {
-		return p.identityPodAgent(provider, dependency, dependsOn, clusterName, p.cluster.Region)
-	})
+	_, err = eks.NewAddon(p.ctx, "pod-identity-agent-addon", &eks.AddonArgs{
+		AddonName:    pulumi.String("eks-pod-identity-agent"),
+		AddonVersion: pulumi.String("v1.3.4-eksbuild.1"),
+		ClusterName:  dependency.ClusterOutput.EKSCluster.Name,
+	}, pulumi.DependsOn(dependsOn), pulumi.Provider(provider))
 
-	return nil
+	return err
 }
 
 func (p *PODIdentity) createIdentityRoles(dependency *types.InterServicesDependencies) error {
@@ -298,133 +297,4 @@ func (p *PODIdentity) createIdentityRoles(dependency *types.InterServicesDepende
 	p.roleMap = roleMap
 
 	return nil
-}
-
-func (p *PODIdentity) identityPodAgent(provider *kubernetes.Provider, dependency *types.InterServicesDependencies, dependsOn []pulumi.Resource, clusterName string, clusterRegion string) error {
-	identityPodAgent := struct {
-		ClusterName   string
-		ClusterRegion string
-	}{
-		ClusterName:   clusterName,
-		ClusterRegion: clusterRegion,
-	}
-
-	const POD_IDENTITY_AGENT = `apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: eks-pod-identity-agent
-  namespace: default
-  labels:
-    app.kubernetes.io/name: eks-pod-identity-agent
-    app.kubernetes.io/instance: release-name
-    app.kubernetes.io/version: "0.1.6"
-spec:
-  updateStrategy:
-    rollingUpdate:
-      maxUnavailable: 10%
-    type: RollingUpdate
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: eks-pod-identity-agent
-      app.kubernetes.io/instance: release-name
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: eks-pod-identity-agent
-        app.kubernetes.io/instance: release-name
-    spec:
-      priorityClassName: system-node-critical
-      hostNetwork: true
-      terminationGracePeriodSeconds: 30
-      tolerations:
-        - operator: Exists
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - amd64
-                - arm64
-              - key: eks.amazonaws.com/compute-type
-                operator: NotIn
-                values:
-                - fargate
-      initContainers:
-        - name: eks-pod-identity-agent-init
-          image: 602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/eks-pod-identity-agent:0.1.10
-          imagePullPolicy: Always
-          command: ['/go-runner', '/eks-pod-identity-agent', 'initialize']
-          securityContext:
-            privileged: true
-      containers:
-        - name: eks-pod-identity-agent
-          image: 602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/eks-pod-identity-agent:0.1.10
-          imagePullPolicy: Always
-          command: ['/go-runner', '/eks-pod-identity-agent', 'server']
-          args:
-            - "--port"
-            - "80"
-            - "--cluster-name"
-            - "{{ .ClusterName }}"
-            - "--probe-port"
-            - "2703"
-          ports:
-            - containerPort: 80
-              protocol: TCP
-              name: proxy
-            - containerPort: 2703
-              protocol: TCP
-              name: probes-port
-          env:
-          - name: AWS_REGION
-            value: "{{ .ClusterRegion }}"
-          securityContext:
-            capabilities:
-              add:
-                - CAP_NET_BIND_SERVICE
-          resources:
-            {}
-          livenessProbe:
-            failureThreshold: 3
-            httpGet:
-              host: localhost
-              path: /healthz
-              port: probes-port
-              scheme: HTTP
-            initialDelaySeconds: 30
-            timeoutSeconds: 10
-          readinessProbe:
-            failureThreshold: 30
-            httpGet:
-              host: localhost
-              path: /readyz
-              port: probes-port
-              scheme: HTTP
-            initialDelaySeconds: 1
-            timeoutSeconds: 10`
-
-	tmpl, err := template.New("pod-identity-agent").Parse(POD_IDENTITY_AGENT)
-	if err != nil {
-		return err
-	}
-
-	var r bytes.Buffer
-	if err := tmpl.Execute(&r, identityPodAgent); err != nil {
-		return err
-	}
-
-	resourceOutput, err := yamlv2.NewConfigGroup(p.ctx, "identity-agent-deploy", &yamlv2.ConfigGroupArgs{
-		Yaml: pulumi.StringPtr(r.String()),
-	}, pulumi.DependsOn(dependsOn), pulumi.Provider(provider))
-
-	dependency.PodIdentityAgent = resourceOutput
-
-	return err
 }

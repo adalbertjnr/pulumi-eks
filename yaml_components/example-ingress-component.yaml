@@ -1,0 +1,13 @@
+server:
+  ingress:
+    enabled: true
+    annotations:
+      alb.ingress.kubernetes.io/certificate-arn: ""
+      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/group.name: my-app-group
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      kubernetes.io/ingress.class: alb
+    ingressClassName: alb
+    hostname: argocd.example.com
+    pathType: ImplementationSpecific

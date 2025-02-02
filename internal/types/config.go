@@ -83,6 +83,7 @@ type Components struct {
 	Name             string                 `yaml:"name"`
 	Version          *string                `yaml:"version"`
 	Repository       string                 `yaml:"repository"`
+	Chart            string                 `yaml:"chart"`
 	Namespace        string                 `yaml:"namespace"`
 	SetValues        map[string]interface{} `yaml:"setValues"`
 	CreateNamespace  bool                   `yaml:"createNamespace,omitempty"`

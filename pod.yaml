@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: busybox
+  name: busybox
+  namespace: example
+spec:
+  serviceAccountName: eks-pod-example-sa
+  containers:
+  - image: alpine
+    name: busybox
+    command: ["sleep", "3600"]

@@ -11,7 +11,9 @@ import (
 
 	"github.com/pulumi/pulumi-aws/sdk/v6/go/aws/iam"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v3/go/kubernetes"
-	helmv4 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v4"
+	helmv3 "github.com/pulumi/pulumi-kubernetes/sdk/v3/go/kubernetes/helm/v3"
+	v1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
+	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -55,17 +57,30 @@ func (e *Extensions) applyHelmCharts(dependency *types.InterServicesDependencies
 			return err
 		}
 
-		_, err = helmv4.NewChart(e.ctx, component.Name, &helmv4.ChartArgs{
-			Name:      pulumi.String(component.Name),
-			Chart:     pulumi.String(component.Name),
-			Namespace: pulumi.String(component.Namespace),
-			SkipCrds:  pulumi.BoolPtr(component.SkipCirds),
-			Version:   pulumi.String(*component.Version),
-			RepositoryOpts: helmv4.RepositoryOptsArgs{
+		_, err = helmv3.NewRelease(e.ctx, component.Name, &helmv3.ReleaseArgs{
+			Name:            pulumi.StringPtr(component.Name),
+			Chart:           pulumi.String(component.Chart),
+			Namespace:       pulumi.StringPtr(component.Namespace),
+			CreateNamespace: pulumi.BoolPtr(component.CreateNamespace),
+			SkipCrds:        pulumi.BoolPtr(component.SkipCirds),
+			Version:         pulumi.StringPtr(*component.Version),
+			RepositoryOpts: helmv3.RepositoryOptsArgs{
 				Repo: pulumi.String(component.Repository),
 			},
 			Values: pulumi.ToMap(helmValue),
 		}, pulumi.DependsOn(dependsOn), pulumi.Provider(provider))
+
+		// _, err = helmv4.NewChart(e.ctx, component.Name, &helmv4.ChartArgs{
+		// 	Name:      pulumi.String(component.Name),
+		// 	Chart:     pulumi.String(component.Name),
+		// 	Namespace: pulumi.String(component.Namespace),
+		// 	SkipCrds:  pulumi.BoolPtr(component.SkipCirds),
+		// 	Version:   pulumi.String(*component.Version),
+		// 	RepositoryOpts: helmv4.RepositoryOptsArgs{
+		// 		Repo: pulumi.String(component.Repository),
+		// 	},
+		// 	Values: pulumi.ToMap(helmValue),
+		// }, pulumi.DependsOn(dependsOn), pulumi.Provider(provider))
 
 		if err != nil {
 			return err
@@ -117,7 +132,32 @@ func (e *Extensions) withOidcProvider(component types.Components, dependency *ty
 			return err
 		}
 
-		return nil
+		return createServiceAccount(
+			e.ctx,
+			component.WithOIDCProvider.ServiceAccount.Name,
+			component.Namespace,
+			role,
+		)
+	})
+
+	return nil
+}
+
+func createServiceAccount(ctx *pulumi.Context, serviceAccountName, serviceAccountNamespace string, role *iam.Role) error {
+	role.Arn.ApplyT(func(roleArn string) error {
+		annotation := map[string]string{
+			"eks.amazonaws.com/role-arn": roleArn,
+		}
+
+		_, err := v1.NewServiceAccount(ctx, serviceAccountName, &v1.ServiceAccountArgs{
+			Metadata: metav1.ObjectMetaArgs{
+				Name:        pulumi.StringPtr(serviceAccountName),
+				Namespace:   pulumi.StringPtr(serviceAccountNamespace),
+				Annotations: pulumi.ToStringMap(annotation),
+			},
+		}, pulumi.DependsOn([]pulumi.Resource{role}))
+
+		return err
 	})
 
 	return nil
