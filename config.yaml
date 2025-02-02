@@ -9,15 +9,12 @@ spec:
       availabilityZone: "us-east-1a"
       tags:
         "kubernetes.io/role/internal-elb": 1
-        "kubernetes.io/cluster/cluster-test": owned
-
     - name: apps-subnet-1b-priv
       cidrBlock: "10.0.1.0/24"
       publicIpOnLaunch: false
       availabilityZone: "us-east-1b"
       tags:
         "kubernetes.io/role/internal-elb": 1
-        "kubernetes.io/cluster/cluster-test": owned
 
     - name: apps-subnet-1a-pub
       cidrBlock: "10.0.2.0/24"
@@ -25,15 +22,12 @@ spec:
       availabilityZone: "us-east-1a"
       tags:
         "kubernetes.io/role/elb": 1
-        "kubernetes.io/cluster/cluster-test": owned
-
     - name: apps-subnet-1b-pub
       cidrBlock: "10.0.3.0/24"
       publicIpOnLaunch: true
       availabilityZone: "us-east-1b"
       tags:
         "kubernetes.io/role/elb": 1
-        "kubernetes.io/cluster/cluster-test": owned
 
   cluster:
     name: cluster-test-new
@@ -64,13 +58,14 @@ spec:
       selfManagedPoliciesPath: ["../policies/identity_pod_policies/example-policy.json"]
     relationships:
     - roleName: eks-pod-example
-      namespace: example
-    - roleName: eks-pod-example
       namespace: default
+    - roleName: eks-pod-example
+      namespace: example
 
   helmChartsComponentes:
     components:
-    - name: aws-load-balancer-controller
+    - name: aws-lb-controller
+      chart: aws-load-balancer-controller
       skipCidrs: false
       version: "1.11.0"
       repository: "https://aws.github.io/eks-charts"
@@ -85,5 +80,34 @@ spec:
           name: aws-load-balancer-controller
       setValues:
         clusterName: cluster-test-new
+        controllerConfig:
+          featureGates:
+            SubnetsClusterTagCheck: false
+        replicaCount: 1
         serviceAccount:
+          create: false
           name: aws-load-balancer-controller
+
+    - name: argo-cd
+      chart: argo-cd
+      createNamespace: true
+      skipCidrs: false
+      version: "7.7.22"
+      repository: "https://argoproj.github.io/argo-helm"
+      namespace: "argocd"
+      setValues:
+        server:
+          ingress:
+            enabled: true
+            annotations:
+              alb.ingress.kubernetes.io/certificate-arn: ""
+              alb.ingress.kubernetes.io/scheme: internet-facing
+              alb.ingress.kubernetes.io/target-type: ip
+              alb.ingress.kubernetes.io/backend-protocol: HTTPS
+              alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-FS-1-2-Res-2020-10
+              alb.ingress.kubernetes.io/ssl-redirect: "443"
+              alb.ingress.kubernetes.io/group.name: my-app-group
+              alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+              kubernetes.io/ingress.class: alb
+            ingressClassName: alb
+            hostname: argocd.example.com
