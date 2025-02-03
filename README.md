@@ -165,5 +165,5 @@ helmChartsComponentes:
 **to run:**
 
 ```
-pulumi run -C cmd/ --stack main --yes
+pulumi up -C cmd/ --stack main --yes
 ```
